@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	// "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -46,7 +46,7 @@ func (sr *statusRecorder) WriteHeader(code int) {
 	sr.ResponseWriter.WriteHeader(code)
 }
 
-var dbConn *pgx.Conn
+var dbPool *pgxpool.Pool
 
 func mustEnv(key string) string {
 	value := os.Getenv(key)
@@ -69,17 +69,20 @@ func buildDSN() string {
 	)
 }
 
-func connectDB() *pgx.Conn {
+func connectDB() *pgxpool.Pool {
 	dsn := buildDSN()
 
-	var conn *pgx.Conn
+	var pool *pgxpool.Pool
 	var err error
 
 	for i := 1; i <= 15; i++ {
-		conn, err = pgx.Connect(context.Background(), dsn)
+		pool, err = pgxpool.New(context.Background(), dsn)
 		if err  == nil {
-			log.Println("connected to datanse)")
-			return conn
+			err = pool.Ping(context.Background())
+			if err == nil {
+				log.Println("Connect to DB (pool)")
+				return pool
+			}
 		}
 		log.Printf("database is not ready yet, attemp %d/15: %v", i, err)
 		time.Sleep(2 * time.Second)
@@ -92,7 +95,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
 	defer cancel()
 
-	err := dbConn.Ping(ctx)
+	err := dbPool.Ping(ctx)
 	if err != nil {
 		http.Error(w, "DB not avaliable", http.StatusServiceUnavailable)
 		return
@@ -128,7 +131,7 @@ func telemetryHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5 * time.Second)
 	defer cancel()
 
-	_, err = dbConn.Exec(ctx, `
+	_, err = dbPool.Exec(ctx, `
 		INSERT INTO printer_telemetry (
 			ts, printer_id, job_id, layer, 
 			t_hotend, t_bed, feedrate, flow_pct, fan_pct,
@@ -187,8 +190,8 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-	dbConn = connectDB()
-	defer dbConn.Close(context.Background())
+	dbPool = connectDB()
+	defer dbPool.Close()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
