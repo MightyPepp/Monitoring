@@ -13,8 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//Переписать под пул соединений с БД, пока только нужный пакет драйвера добавлен
-
 type Metrics struct {
 	THotend  float64 `json:"t_hotend"`
 	TBed     float64 `json:"t_bed"`
@@ -77,7 +75,7 @@ func connectDB() *pgxpool.Pool {
 
 	for i := 1; i <= 15; i++ {
 		pool, err = pgxpool.New(context.Background(), dsn)
-		if err  == nil {
+		if err == nil {
 			err = pool.Ping(context.Background())
 			if err == nil {
 				log.Println("Connect to DB (pool)")
@@ -92,7 +90,7 @@ func connectDB() *pgxpool.Pool {
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	err := dbPool.Ping(ctx)
@@ -128,14 +126,14 @@ func telemetryHandler(w http.ResponseWriter, r *http.Request) {
 		msg.TS = time.Now().UTC()
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5 * time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
 	_, err = dbPool.Exec(ctx, `
 		INSERT INTO printer_telemetry (
 			ts, printer_id, job_id, layer, 
 			t_hotend, t_bed, feedrate, flow_pct, fan_pct,
-			axis_x, axis_y, axiz_z,
+			axis_x, axis_y, axis_z,
 			status, event
 		) VALUES (
 		 	$1, $2, $3, $4, $5, $6,
@@ -174,7 +172,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 		recorder := &statusRecorder{
 			ResponseWriter: w,
-			statusCode: 	http.StatusOK,
+			statusCode:     http.StatusOK,
 		}
 
 		next.ServeHTTP(recorder, r)
@@ -199,7 +197,7 @@ func main() {
 
 	addr := ":8080"
 	log.Printf("Starting ingest service on %s", addr)
-	
+
 	handler := loggingMiddleware(mux)
 
 	if err := http.ListenAndServe(addr, handler); err != nil {
