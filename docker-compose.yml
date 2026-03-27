@@ -26,6 +26,34 @@ services:
     depends_on:
       - timescaledb
 
+  ingest:
+    build:
+      context: ./ingest
+      dockerfile: Dockerfile
+    container_name: printer-ingest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: timescaledb
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: printer_monitor
+    depends_on:
+      - timescaledb
+
+  simulator:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: printer-simulator
+    restart: unless-stopped
+    environment:
+      INGEST_URL: http://ingest:8080/api/v1/telemetry
+    depends_on:
+      - ingest
+
 volumes:
   timescaledb_data:
   grafana_data:

@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -34,9 +35,12 @@ type TelemetryMessage struct {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	client := &http.Client{
-		Timeout: 5 * time.Second,
+	ingestURL := os.Getenv("INGEST_URL")
+	if ingestURL == "" {
+		ingestURL = "http://localhost:8080/api/v1/telemetry"
 	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
 
 	printerID := "PRN-01"
 	jobID := "JOB-DEMO-001"
@@ -45,7 +49,7 @@ func main() {
 	z := 0.2
 	step := 0
 
-	log.Println("Starting simulator...")
+	log.Println("starting simulator...")
 
 	for {
 		now := time.Now().UTC()
@@ -75,37 +79,21 @@ func main() {
 		body, err := json.Marshal(msg)
 		if err != nil {
 			log.Printf("marshal error: %v", err)
-			time.Sleep(1 * time.Second)
+			time.Sleep(time.Second)
 			continue
 		}
 
-		resp, err := client.Post(
-			"http://localhost:8080/api/v1/telemetry",
-			"application/json",
-			bytes.NewBuffer(body),
-		)
+		resp, err := client.Post(ingestURL, "application/json", bytes.NewBuffer(body))
 		if err != nil {
 			log.Printf("post error: %v", err)
-			time.Sleep(1 * time.Second)
+			time.Sleep(time.Second)
 			continue
 		}
-
 		_ = resp.Body.Close()
 
-		log.Printf(
-			"sent telemetry: status=%s layer=%d hotend=%.2f bed=%.2f x=%.2f y=%.2f z=%.2f http=%d",
-			msg.Status,
-			msg.Layer,
-			msg.Metrics.THotend,
-			msg.Metrics.TBed,
-			msg.Metrics.AxisX,
-			msg.Metrics.AxisY,
-			msg.Metrics.AxisZ,
-			resp.StatusCode,
-		)
+		log.Printf("sent telemetry: layer=%d z=%.2f http=%d", msg.Layer, msg.Metrics.AxisZ, resp.StatusCode)
 
 		step++
-
 		if step%8 == 0 {
 			layer++
 			z += 0.2
@@ -116,6 +104,6 @@ func main() {
 			break
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(time.Second)
 	}
 }
