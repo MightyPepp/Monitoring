@@ -44,6 +44,27 @@ func (sr *statusRecorder) WriteHeader(code int) {
 	sr.ResponseWriter.WriteHeader(code)
 }
 
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		recorder := &statusRecorder{
+			ResponseWriter: w,
+			statusCode:     http.StatusOK,
+		}
+
+		next.ServeHTTP(recorder, r)
+
+		log.Printf(
+			"%s %s %d %s",
+			r.Method,
+			r.URL.Path,
+			recorder.statusCode,
+			time.Since(start),
+		)
+	})
+}
+
 var dbPool *pgxpool.Pool
 
 func mustEnv(key string) string {
@@ -164,27 +185,6 @@ func telemetryHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
-}
-
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-
-		recorder := &statusRecorder{
-			ResponseWriter: w,
-			statusCode:     http.StatusOK,
-		}
-
-		next.ServeHTTP(recorder, r)
-
-		log.Printf(
-			"%s %s %d %s",
-			r.Method,
-			r.URL.Path,
-			recorder.statusCode,
-			time.Since(start),
-		)
-	})
 }
 
 func main() {

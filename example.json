@@ -1,0 +1,18 @@
+{
+  "printer_id": "PRN-01",
+  "job_id": "JOB-001",
+  "ts": "2026-03-20T18:30:00Z",
+  "layer": 10,
+  "metrics": {
+    "t_hotend": 205.4,
+    "t_bed": 60.1,
+    "feedrate": 48.0,
+    "flow_pct": 100,
+    "fan_pct": 60,
+    "axis_x": 120.5,
+    "axis_y": 87.1,
+    "axis_z": 2.0
+  },
+  "status": "printing",
+  "event": null
+}
